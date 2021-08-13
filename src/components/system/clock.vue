@@ -1,0 +1,281 @@
+<template>
+    <div class="box">
+        <h2>系统时间</h2>
+        <div class="items">
+            <div>
+                <span> 系统时间
+<!--                    <span v-if="value == 0">{{ this.date0 }}</span>-->
+<!--                    <span >{{ this.date1 }}</span>-->
+<!--                          <span v-if="value == 0"  disabled="" class="txt1">{{ this.date0 }}</span>-->
+<!--                          <span v-if="value == 100" disabled="" class="txt1">{{ this.date1 }}</span>-->
+                        <input type="text" v-model="this.date0"  style="width:40%;height: 30px" v-if="valueSwitch == false" disabled="" class="txt1">
+                        <input type="text" v-model="this.date1" style="width:40%;height: 30px" v-if="valueSwitch == true" disabled="" class="txt1">
+                </span>
+<!--                <button class="btn1">重启服务</button>-->
+            </div>
+            <div>系统同步服务IP<input  v-model='ip' class="txt" placeholder="请输入IP" type="text"/></div>
+            <div>
+<!--                <span>自动同步系统时间</span>-->
+               <div class="on">
+<!--                   <el-tooltip :content="'Switch value: ' + value" placement="top" @click.native="log">-->
+<!--                       <el-switch-->
+<!--                               v-model="value"-->
+<!--                               active-color="#13ce66"-->
+<!--                               inactive-color="#ff4949"-->
+<!--                               active-value="100"-->
+<!--                               inactive-value="0">-->
+<!--                       </el-switch>-->
+<!--                   </el-tooltip>-->
+               </div>
+            </div>
+
+            <div class="footer">
+<!--                <button class="btn2" @click="exchange">保存</button>-->
+<!--                <el-button-->
+<!--                        class="btn"-->
+<!--                        plain-->
+<!--                        @click="open1">-->
+<!--                        同步-->
+<!--                </el-button>-->
+                <el-button @click="open1" class="btn1" >同步系统时间</el-button>
+<!--                <el-switch-->
+<!--                        @change="syn"-->
+<!--                        class="off"-->
+<!--                        v-model="valueSwitch"-->
+<!--                        active-color="deepskyblue"-->
+<!--                        inactive-color="#ff4949"-->
+<!--                       >-->
+<!--                </el-switch>-->
+                <el-button
+                        class="btn"
+                        plain
+                        @click="open2">
+                    连通性测试
+                </el-button>
+<!--                <button class="btn2" @click="exchange">连通性测试</button>-->
+<!--                <span v-show='this.a==0' class="success"></span>-->
+<!--                <span v-show='this.a==1' class="success">{{isSuccess}}</span>-->
+            </div>
+            <div class="clock"><clock size="300px"></clock></div>
+<!--            <div ref="myChart" :style="{width: '300px', height: '300px'}"></div>-->
+        </div>
+    </div>
+</template>
+
+<script>
+    import axios from 'axios'
+    import {getClock} from "../../api/network";
+    import Clock from 'vue-clock2';
+    export default {
+        name: "time",
+        components:{
+            Clock
+        },
+        data(){
+            return{
+                date0:new Date(),
+                date1:new Date(),
+                valueSwitch:false,
+                ip:'',
+                isSuccess:'已成功保存!!!',
+                a:'0',
+                chartInstance: null,
+                option: {},
+                time:new Date(),
+                msg:''
+            }
+        },
+        async created() {
+            // this.open1();
+            // this.open2();
+            const {data} = await getClock();
+            this.IP = data.data.defaultIpv4;
+            console.log( data.data.defaultIpv4)
+
+            const this_ = this; //声明一个变量代表this，保证this的指向正确
+            const setTime = setInterval(function() {  //使用定时器，每一秒执行一次
+                this_.nowTime = //将获取的时间戳转换成日常的时间格式
+                    new Date().getFullYear() + "-" +
+                    this_.appendZero((new Date().getMonth() + 1)) + "-" +
+                    this_.appendZero(new Date().getDate()) + " " +
+                    this_.appendZero(new Date().getHours()) + ":" +
+                    this_.appendZero(new Date().getMinutes()) + ": " +
+                    this_.appendZero(new Date().getSeconds());
+            }, 1000);
+            return setTime;
+        },
+        mounted() {
+            let _this = this; // 声明一个变量指向Vue实例this，保证作用域一致
+            this.timer = setInterval(() => {
+                _this.date1 = new Date(); // 修改数据date
+            }, 1000)
+        },
+        beforeDestroy() {
+            if (this.timer) {
+                clearInterval(this.timer); // 在Vue实例销毁前，清除我们的定时器
+            }
+        },
+        methods:{
+            syn(){
+                if(this.valueSwitch === true){
+                    this.$notify({
+                        // title: '连通性测试',
+                        message: '系统时间同步成功！！！',
+                        type: 'success'
+                    });
+                }
+            },
+            // 将小于10的在前面加0
+            appendZero(time){
+                if (time < 10) {
+                    return "0" + time;
+                }else {
+                    return time;
+                }
+            },
+            // log(){
+            //     console.log('a');
+            // }
+            // exchange(){
+            //     this.a = 1;
+            // }
+            open1() {
+                this.valueSwitch = true;
+                this.$notify({
+                    title: '同步',
+                    message: '时间已同步！！！',
+                    type: 'success'
+                });
+                axios.post('http://39.106.116.109:9095/api/conf/setAutoTime',{
+                    params:{
+                        ip:this.ip
+                    }
+                }).then(res =>{
+                    console.log(res);
+                })
+            },
+            open2() {
+                axios.get('http://39.106.116.109:9095/api/conf/testPing',{
+                    params:{
+                        ip:this.ip
+                    }
+                }).then(res=>{
+                    console.log(res);
+                    console.log(res.data.code)
+                   this.msg = res.data.code;
+                    if(res.data.code === -1){
+                        this.$notify({
+                            title: '连通性测试',
+                            message: '连通测试失败！！！',
+                            type: ''
+                        });
+                    }else {
+                        this.$notify({
+                            title: '连通性测试',
+                            message: '连通测试成功！！！',
+                            type: 'success'
+                        });
+                    }
+                })
+            },
+        }
+    }
+</script>
+
+<style scoped>
+    .box{
+        border: 1px solid rgba(0,0,0,.2);
+        border-radius: 10px;
+
+        width: 90%;
+        /*height: 100%;*/
+        margin-left: 56px;
+        margin-top: 50px;
+        /*position: fixed;*/
+        /*margin-top: -20px;*/
+        font-size: 16px;
+        /*background: url("../../assets/c.png") no-repeat center;*/
+        color: black;
+        box-shadow: 2px 4px 20px 2px rgb(197 197 197);
+        padding: 20px;
+        /*background-color: white;*/
+        background-color: white;
+    }
+    .items>div{
+        margin: 35px;
+    }
+    h2{
+        margin-left: 40px;
+    }
+    .btn1{
+        margin-left: 5px;
+        width: 120px;
+        height: 50px;
+        border: 1px solid gray;
+        border-radius: 10px;
+        background-color: white;
+    }
+    .btn{
+        margin-left: 120px;
+        width: 120px;
+        height: 50px;
+        border: 1px solid gray;
+        border-radius: 10px;
+        background-color: white;
+    }
+    .items{
+        /*position: absolute;*/
+        width: 80%;
+        height: 45%;
+        margin-left: 142px;
+        /*left: 50%; top: 50%;*/
+        /*transform: translate(-50%,-50%);*/
+        /*background-color: white;*/
+        border: 1px solid rgba(0,0,0,.2);
+        border-radius: 10px;
+        /*background-color: white;*/
+        box-shadow: 2px 4px 20px 2px rgb(197 197 197);
+        background-color: white;
+        /*border-radius: 5px;*/
+        /*color: #00FFFF;*/
+        /*border:8px solid green;*/
+        /*border-radius: 10px;*/
+        /*-moz-box-shadow:0 0 10px #06c;*/
+        /*-webkit-box-shadow:0 0 10px #06c;*/
+        /*box-shadow:0 0 20px green;*/
+    }
+    .on{
+        /*margin-left: 10px;*/
+    }
+    .success{
+        margin-left: 50px;
+        font-size: 30px;
+    }
+    .txt{
+        margin-top: 30px;
+        width: 40%;
+        height: 30px;
+        margin-left: 40px;
+    }
+    .txt1{
+        margin-left: 80px;
+        border: 1px solid rgba(0,0,0,.2);
+        border-radius: 10px;
+        /*width:50%;*/
+        /*height: 60px*/
+    }
+    .txt,.txt1{
+        border-radius: 10px;
+    }
+    .clock{
+        margin-left: 730px;
+        margin-top: -180px;
+    }
+    .off{
+        margin-left: 10px;
+    }
+    .footer{
+        position: fixed;
+        padding-left: 150px;
+    }
+</style>
